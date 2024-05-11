@@ -25,6 +25,8 @@ from serl_launcher.agents.continuous.sac import SACAgent
 from serl_launcher.common.evaluation import evaluate
 from serl_launcher.utils.timer_utils import Timer
 
+from serl_launcher.utils.train_utils import concat_batches
+from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 import sys
 sys.path.insert(0, "/home/hunter/catkin_ws/src/")
 import bravo_7_gym
@@ -39,6 +41,7 @@ flags.DEFINE_integer("seed", 42, "Random seed.")
 flags.DEFINE_bool("save_model", False, "Whether to save model.")
 flags.DEFINE_integer("batch_size", 256, "Batch size.")
 flags.DEFINE_integer("utd_ratio", 8, "UTD ratio.")
+flags.DEFINE_string("demo_path", "rest_to_looking_down_20_demos_2024-05-11_14-43-14.plk", "Path to demos.")
 
 flags.DEFINE_integer("max_steps", 1000000, "Maximum number of training steps.")
 flags.DEFINE_integer("replay_buffer_capacity", 1000000, "Replay buffer capacity.")
@@ -170,7 +173,7 @@ def actor(agent: SACAgent, data_store, env, sampling_rng):
 ##############################################################################
 
 
-def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=None):
+def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, demo_iterator, wandb_logger=None):
     """
     The learner loop, which runs when "--learner" is set to True.
     """
@@ -214,6 +217,9 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, wandb_logger=N
         # Train the networks
         with timer.context("sample_replay_buffer"):
             batch = next(replay_iterator)
+            demo_batch = next(demo_iterator)
+            batch = concat_batches(batch, demo_batch, axis=0)
+            #batch = next(replay_iterator)
 
         with timer.context("train"):
             agent, update_info = agent.update_high_utd(batch, utd_ratio=FLAGS.utd_ratio)
@@ -255,7 +261,6 @@ def main(_):
         env = gym.make(FLAGS.env)
     #print("Env started")
     env = gym.wrappers.FlattenObservation(env)
-    
 
     #print("Making SAC Agent")
     #print(env.action_space.sample())
@@ -293,11 +298,36 @@ def main(_):
         #print("Starting Learner stuff")
         sampling_rng = jax.device_put(sampling_rng, device=sharding.replicate())
         replay_buffer, wandb_logger = create_replay_buffer_and_wandb_logger()
+
+        demo_buffer = make_replay_buffer(
+            env,
+            capacity=10000,
+            rlds_logger_path=FLAGS.log_rlds_path,
+            type="replay_buffer",
+            preload_rlds_path=FLAGS.preload_rlds_path,
+        )
+        import pickle as pkl
+
+        with open(FLAGS.demo_path, "rb") as f:
+            trajs = pkl.load(f)
+            for traj in trajs:
+                demo_buffer.insert(traj)
+        print(f"demo buffer size: {len(demo_buffer)}")
+
         replay_iterator = replay_buffer.get_iterator(
             sample_args={
-                "batch_size": FLAGS.batch_size * FLAGS.utd_ratio,
+                "batch_size": FLAGS.batch_size // 2,
+                "pack_obs_and_next_obs": True,
             },
             device=sharding.replicate(),
+        )
+
+        demo_iterator = demo_buffer.get_iterator(
+            sample_args={
+                "batch_size": FLAGS.batch_size // 2,
+                "pack_obs_and_next_obs": True,
+            },
+        device=sharding.replicate(),
         )
         # learner loop
         print_green("starting learner loop")
@@ -306,6 +336,7 @@ def main(_):
             agent,
             replay_buffer,
             replay_iterator=replay_iterator,
+            demo_iterator=demo_iterator,
             wandb_logger=wandb_logger,
         )
 
