@@ -14,6 +14,7 @@ import datetime
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 from pyquaternion import Quaternion
+from random import randint
 
 num_demos = 20
 
@@ -41,8 +42,8 @@ def interpolate_move(start, goal, timeout, hz):
         path[i][3:] = R.from_euler("xyz", rpypath[i], degrees=False).as_quat()
     return path
 
-def getLoadedPath(fp):
-    data = {"filepath":fp, 'dt':0.1, 'steps':75, 'playback':False}
+def getLoadedPath(fp, steps=75):
+    data = {"filepath":fp, 'dt':0.1, 'steps':steps, 'playback':False}
     ps = requests.post("http://127.0.0.1:5000/loadTraj", json=data).json()
     raw_traj = ps['traj']
     traj = []
@@ -52,8 +53,9 @@ def getLoadedPath(fp):
     return traj
 
 if __name__ == "__main__":
-
-    env = gym.make('Bravo7Base-v0')
+    #env_name = "Bravo7Base-v0"
+    env_name = "Bravo7_DenseRepo-v0"
+    env = gym.make(env_name)
     env = gym.wrappers.FlattenObservation(env)
 
     rate_hz = env.unwrapped.hz
@@ -75,10 +77,11 @@ if __name__ == "__main__":
     transitions = []
     count = 0
     while count < num_demos:
-        raw_poses = getLoadedPath("/home/hunter/traj.yaml")
+        raw_poses = getLoadedPath("/home/hunter/traj.yaml", randint(10,90))
         obs, _ = env.reset()
         # for each ee pose in path
         action = np.zeros((6,))
+        found_goal = False
         for k in range(env.unwrapped.max_episode_length):
             if k < len(raw_poses):
                 pose = np.array(raw_poses[k])
@@ -91,7 +94,8 @@ if __name__ == "__main__":
             #print("Euler Action:", action[3:])
             # send action to env
             next_obs, rew, done, truncated, info = env.step(action)
-
+            if info['found_goal']:
+                found_goal = True
             transition = copy.deepcopy(
                 dict(
                     observations=obs,
@@ -106,11 +110,11 @@ if __name__ == "__main__":
 
             obs = next_obs
             if done:
-                count += rew
+                count += 1 if found_goal else 0
                 #print(
                 #    f"{k}:{rew}\tGot {count} successes of {num_demos} trials."
                 #)
-                pbar.update(rew)
+                pbar.update(1 if found_goal else 0)
                 break
 
     # save demos
@@ -119,6 +123,7 @@ if __name__ == "__main__":
         print(f"saved {num_demos} demos to {file_path}")
 
     env.close()
+    pbar.close()
 
 
 

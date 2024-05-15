@@ -226,6 +226,7 @@ def learner(rng, agent: SACAgent, replay_buffer, replay_iterator, demo_iterator,
             agent = jax.block_until_ready(agent)
 
             # publish the updated network
+            #print("Publishing updated Network")
             server.publish_network(agent.state.params)
 
         if update_steps % FLAGS.log_period == 0 and wandb_logger:
@@ -317,7 +318,7 @@ def main(_):
         replay_iterator = replay_buffer.get_iterator(
             sample_args={
                 "batch_size": FLAGS.batch_size // 2,
-                "pack_obs_and_next_obs": True,
+                #"pack_obs_and_next_obs": True,
             },
             device=sharding.replicate(),
         )
@@ -325,7 +326,7 @@ def main(_):
         demo_iterator = demo_buffer.get_iterator(
             sample_args={
                 "batch_size": FLAGS.batch_size // 2,
-                "pack_obs_and_next_obs": True,
+                #"pack_obs_and_next_obs": True,
             },
         device=sharding.replicate(),
         )

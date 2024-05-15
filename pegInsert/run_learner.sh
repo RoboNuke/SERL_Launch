@@ -1,9 +1,9 @@
 export XLA_PYTHON_CLIENT_PREALLOCATE=false && \
-export XLA_PYTHON_CLIENT_MEM_FRACTION=.2 && \
+export XLA_PYTHON_CLIENT_MEM_FRACTION=.3 && \
 python async_drq_randomized.py "$@" \
     --learner \
-    --env FrankaPegInsert-Vision-v0 \
-    --exp_name=serl_dev_drq_rlpd10demos_peg_insert_random_resnet_097 \
+    --env Bravo7FixedPegInsert-v0 \
+    --exp_name=test1 \
     --seed 0 \
     --random_steps 1000 \
     --training_starts 200 \
@@ -11,6 +11,6 @@ python async_drq_randomized.py "$@" \
     --batch_size 256 \
     --eval_period 2000 \
     --encoder_type resnet-pretrained \
-    --demo_path peg_insert_20_demos_2023-12-25_16-13-25.pkl \
+    --demo_path demos/fixed_peg_insert_1_demos_2024-05-14_17-04-37.pkl \
     --checkpoint_period 1000 \
-    --checkpoint_path /home/undergrad/code/serl_dev/examples/async_peg_insert_drq/5x5_20degs_20demos_rand_peg_insert_097
+    --checkpoint_path /home

@@ -12,6 +12,8 @@ from flax.training import checkpoints
 import gymnasium as gym
 from gymnasium.wrappers.record_episode_statistics import RecordEpisodeStatistics
 
+import sys
+sys.path.insert(0, "/home/hunter/catkin_ws/src/")
 from serl_launcher.agents.continuous.drq import DrQAgent
 from serl_launcher.common.evaluation import evaluate
 from serl_launcher.utils.timer_utils import Timer
@@ -28,7 +30,7 @@ from serl_launcher.utils.launcher import (
 )
 from serl_launcher.data.data_store import MemoryEfficientReplayBufferDataStore
 from serl_launcher.wrappers.serl_obs_wrappers import SERLObsWrapper
-from bravo_7_gym.envs.wrappers import (
+from bravo_7_gym.wrappers import (
 #    SpacemouseIntervention,
     Quat2EulerWrapper,
 )
@@ -315,8 +317,9 @@ def main(_):
     env = gym.make(
         FLAGS.env,
         fake_env=FLAGS.learner,
-        save_video=FLAGS.eval_checkpoint_step,
+    #    save_video=FLAGS.eval_checkpoint_step,
     )
+    #env = gym.make(FLAGS.env)
     #if FLAGS.actor:
     #    env = SpacemouseIntervention(env)
     env = Quat2EulerWrapper(env)
@@ -325,7 +328,7 @@ def main(_):
     env = RecordEpisodeStatistics(env)
 
     image_keys = [key for key in env.observation_space.keys() if key != "state"]
-
+    
     rng, sampling_rng = jax.random.split(rng)
     agent: DrQAgent = make_drq_agent(
         seed=FLAGS.seed,
