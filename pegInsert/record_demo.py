@@ -48,13 +48,15 @@ def interpolate_move(start, goal, timeout, hz):
     return path
 
 def getLoadedPath(fp, steps=75):
-    data = {"filepath":fp, 'dt':0.1, 'steps':steps, 'playback':False}
+    data = {"filepath":fp, 'dt':0.01, 'steps':0, 'playback':False}
+    print("Waiting for traj")
     ps = requests.post("http://127.0.0.1:5000/loadTraj", json=data).json()
     raw_traj = ps['traj']
     traj = []
-    for i in range(data['steps']):
+    for i in range(len(raw_traj)):#data['steps']):
         pt = np.array(raw_traj[i*7:i*7+7])
         traj.append(pt)
+    print("return raw traj")
     return traj
 
 if __name__ == "__main__":
@@ -96,13 +98,22 @@ if __name__ == "__main__":
     pbar = tqdm(total=num_demos)
     while count < num_demos:
         curr_path = os.path.join(demo_path, file_names[count])
-        #print("Loading Demo:", curr_path)
-        raw_poses = getLoadedPath(curr_path, randint(10,90))
+        print("Loading Demo:", curr_path)
+        raw_poses = getLoadedPath(curr_path)#randint(10,90))
         obs, _ = env.reset()
+        start_pos = raw_poses[0]
+        print("Starting pose:", start_pos)
+        #requests.post("http://127.0.0.1:5000/stopCC", json={})
+        #time.sleep(0.5)
+        #srequests.post("http://127.0.0.1:5000/pose", json={"arr":start_pos.tolist()})
+        requests.post("http://127.0.0.1:5000/startCC", json={})
+        time.sleep(0.5)
+        print("Moved to start")
         # for each ee pose in path
         action = np.zeros((6,))
         found_goal = False
-        for k in range(env.unwrapped.max_episode_length):
+        for k in range(len(raw_poses)): #range(env.unwrapped.max_episode_length):
+            print(k)
             if k < len(raw_poses):
                 pose = np.array(raw_poses[k])
             else:
@@ -132,7 +143,8 @@ if __name__ == "__main__":
 
             obs = next_obs
             if done:
-                count += 1 if found_goal else 0
+                print("Found goal") if found_goal else print("Failed")
+                count += 1 #if found_goal else 0
                 #print(
                 #    f"{k}:{rew}\tGot {count} successes of {num_demos} trials."
                 #)

@@ -95,6 +95,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng):
     This is the actor loop, which runs when "--actor" is set to True.
     """
     if FLAGS.eval_checkpoint_step:
+        print("Starting Evaluation")
         success_counter = 0
         time_list = []
 
@@ -123,7 +124,7 @@ def actor(agent: DrQAgent, data_store, env, sampling_rng):
                     if reward:
                         dt = time.time() - start_time
                         time_list.append(dt)
-                        print(dt)
+                        #print(dt)
 
                     success_counter += reward
                     print(reward)
@@ -374,7 +375,7 @@ def main(_):
             trajs = pkl.load(f)
             for traj in trajs:
                 demo_buffer.insert(traj)
-        print(f"demo buffer size: {len(demo_buffer)}")
+        #print(f"demo buffer size: {len(demo_buffer)}")
 
         # learner loop
         print_green("starting learner loop")
